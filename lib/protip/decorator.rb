@@ -226,11 +226,16 @@ module Protip
     end
 
     def set(field, value)
+      return if field.label == :optional && value.nil? && get(field).nil?
+
       if field.label == :repeated
-        message[field.name].replace value.map{|v| to_protobuf_value field, v}
+        new_values = value.map {|v| to_protobuf_value(field, v) }.compact
+
+        message[field.name].replace(new_values)
       else
         message[field.name] = to_protobuf_value(field, value)
       end
+
     end
 
     # Helper for setting values - converts the value for the given
@@ -238,7 +243,7 @@ module Protip
     def to_protobuf_value(field, value)
       if field.type == :message
         if nil == value
-          nil
+          field&.default || field&.subtype&.msgclass&.new
         # This check must happen before the nested_resources check to
         # ensure nested messages are set properly
         elsif value.is_a?(field.subtype.msgclass)
